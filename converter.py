@@ -11,10 +11,10 @@ def asciiConvert(imagem, tipo, salvarcomo, scale):
 
     # open new image
     img = Image.open("resized.%s" % tipo)
-    w, h = img.size # get new width and height 
+    w, h = img.size # get new width and height (Salva o novo comprimento e altura)
 
 
-    # list with correct length and height (same as resized image)
+    # list with correct length and height (os mesmos parametros da nova imagem)
     grid = []
     for i in range(h):
         grid.append(["X"] * w)
@@ -53,4 +53,4 @@ def asciiConvert(imagem, tipo, salvarcomo, scale):
     art.close()
 
 if __name__ == '__main__':
-    asciiConvert("C:\\Users\\gmvc\\Documents\\Meus scripst\\joto.jpg", "jpg", "julia", "3")
+    asciiConvert("diretório da foto", "jpg", "nome do txt", "3")
