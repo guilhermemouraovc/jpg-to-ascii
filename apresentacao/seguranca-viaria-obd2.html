@@ -1,0 +1,460 @@
+<title>Jetta na Via</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: painel de telemetria — cabeçalho curto, replay da viagem (gráficos + leituras), eventos, depois o mapa PID → indicador */
+:root {
+  --bg: #f4f5f3;
+  --surface: #fcfcfb;
+  --ink: #15181c;
+  --ink-2: #4b5059;
+  --ink-3: #7c828c;
+  --rule: #dcdfe2;
+  --accent: #1f5fbf;          /* azul das placas de indicação */
+  --series-1: #2a78d6;
+  --limit: #6b7078;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --serious-wash: rgba(236,131,90,.16);
+  --font-display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121416; --surface: #1a1a19; --ink: #eef0f2; --ink-2: #b9bec6; --ink-3: #8a909a;
+    --rule: #2e3236; --accent: #6ea3ee; --series-1: #3987e5; --limit: #9aa0a8;
+    --serious-wash: rgba(236,131,90,.20); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121416; --surface: #1a1a19; --ink: #eef0f2; --ink-2: #b9bec6; --ink-3: #8a909a;
+  --rule: #2e3236; --accent: #6ea3ee; --series-1: #3987e5; --limit: #9aa0a8;
+  --serious-wash: rgba(236,131,90,.20); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 16px/1.5 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: .005em; }
+h1 { font-size: clamp(2rem, 4.6vw, 3rem); line-height: 1.05; font-weight: 700; }
+h2 { font-size: 1.6rem; font-weight: 700; line-height: 1.15; }
+h3 { font-size: 1.15rem; font-weight: 600; }
+p { margin: 0; }
+.eyebrow { font: 600 .78rem/1 var(--font-data); text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+.lede { color: var(--ink-2); max-width: 68ch; font-size: 1.08rem; }
+.sim-tag { display: inline-flex; align-items: center; gap: 6px; font: 600 .78rem/1 var(--font-data); color: var(--ink-2);
+  border: 1px dashed var(--ink-3); border-radius: 4px; padding: 6px 8px; }
+header { display: grid; gap: 14px; }
+section { display: grid; gap: 16px; min-width: 0; }
+.section-head { display: grid; gap: 6px; }
+.section-head p { color: var(--ink-2); max-width: 70ch; }
+
+/* ---- painel do replay ---- */
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+button { font: 600 .95rem/1 var(--font-body); cursor: pointer; border-radius: 6px; padding: 10px 14px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+:root:not([data-theme="light"]) button.primary { color: #fff; }
+button:focus-visible, input:focus-visible, .ev:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.clock { font: 600 1.05rem/1 var(--font-data); font-variant-numeric: tabular-nums; color: var(--ink); }
+.scrub { flex: 1 1 220px; min-width: 0; accent-color: var(--accent); }
+.zone { font: 600 .82rem/1 var(--font-data); color: var(--ink-2); }
+
+.readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px; }
+.ro { border-top: 2px solid var(--rule); padding-top: 8px; display: grid; gap: 2px; }
+.ro .k { font: 600 .7rem/1.2 var(--font-data); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.ro .v { font: 600 1.6rem/1.1 var(--font-data); font-variant-numeric: tabular-nums; }
+.ro .v small { font-size: .8rem; color: var(--ink-2); font-weight: 400; margin-left: 3px; }
+.ro .pid { font: .72rem/1.2 var(--font-data); color: var(--ink-3); }
+.ro.alert { border-top-color: var(--serious); }
+
+.chart-block { display: grid; gap: 6px; min-width: 0; }
+.chart-title { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; align-items: baseline; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .85rem; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 18px; height: 0; border-top: 2px solid; display: inline-block; }
+.sw.dash { border-top-style: dashed; }
+.sw.box { height: 10px; border: 0; border-radius: 2px; }
+.chart { position: relative; min-width: 0; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font-family: var(--font-data); font-size: 11px; fill: var(--ink-3); }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px;
+  padding: 8px 10px; font: .8rem/1.45 var(--font-data); color: var(--ink); box-shadow: 0 4px 14px rgba(0,0,0,.12); white-space: nowrap; z-index: 2; }
+.tip b { font-weight: 600; }
+
+/* ---- eventos e nota ---- */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 16px; }
+@media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+.score { display: grid; gap: 10px; align-content: start; }
+.score .big { font: 700 4rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.score .big small { font-size: 1.4rem; color: var(--ink-3); }
+.pill { display: inline-flex; align-items: center; gap: 6px; font: 600 .8rem/1 var(--font-body); padding: 6px 10px; border-radius: 999px; border: 1px solid currentColor; width: fit-content; }
+.tally { display: grid; gap: 6px; font-size: .92rem; }
+.tally div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--rule); padding-bottom: 6px; }
+.tally b { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.note { font-size: .82rem; color: var(--ink-3); }
+
+.events { display: grid; gap: 8px; align-content: start; }
+.ev { display: grid; grid-template-columns: 56px 24px minmax(0,1fr); gap: 10px; align-items: start; padding: 10px; border-radius: 8px;
+  border: 1px solid var(--rule); background: var(--surface); text-align: left; font: inherit; color: inherit; cursor: pointer; width: 100%; }
+.ev.future { opacity: .4; }
+.ev .t { font: 600 .85rem/1.4 var(--font-data); font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.ev .ico { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 700 .8rem/1 var(--font-data); color: #fff; }
+.ev .d { display: grid; gap: 2px; min-width: 0; }
+.ev .d strong { font-weight: 600; }
+.ev .d span { color: var(--ink-2); font-size: .88rem; }
+
+/* ---- tabelas ---- */
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: .92rem; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font: 600 .72rem/1.2 var(--font-data); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+tr:last-child td { border-bottom: 0; }
+td code { font: .82rem var(--font-data); background: var(--bg); padding: 2px 5px; border-radius: 4px; white-space: nowrap; }
+
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.col { display: grid; gap: 8px; align-content: start; }
+.col ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--ink-2); }
+.col li strong { color: var(--ink); font-weight: 600; }
+
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.step { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; display: grid; gap: 4px; }
+.step .n { font: 600 .75rem/1 var(--font-data); color: var(--accent); }
+.step p { color: var(--ink-2); font-size: .92rem; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Segurança viária · OBD2 · VW Jetta TSI 2018/19</span>
+    <h1>O que a porta OBD2 do carro revela sobre como ele é dirigido</h1>
+    <p class="lede">Simulação de um trajeto urbano de 12 minutos lido por um adaptador ELM327. A partir de poucos sinais padrão da central do motor dá para detectar frenagens bruscas, arrancadas agressivas e excesso de velocidade, e transformar isso em indicadores de risco.</p>
+    <span class="sim-tag">⚠ Dados simulados para demonstração — não são leituras reais do veículo</span>
+  </header>
+
+  <section aria-labelledby="replay-h">
+    <div class="section-head">
+      <h2 id="replay-h">Replay da viagem</h2>
+      <p>Aperte <b>Reproduzir</b> ou arraste a barra. Os números mostram o que o carro informa naquele segundo; passe o mouse nos gráficos para ver cada ponto.</p>
+    </div>
+    <div class="panel">
+      <div class="controls">
+        <button class="primary" id="play" type="button">▶ Reproduzir</button>
+        <span class="clock" id="clock">12:00</span>
+        <input class="scrub" id="scrub" type="range" min="0" max="719" value="719" aria-label="Posição na viagem">
+        <span class="zone" id="zone">—</span>
+      </div>
+
+      <div class="readouts" id="readouts"></div>
+
+      <div class="chart-block">
+        <div class="chart-title">
+          <h3>Velocidade × limite da via</h3>
+          <div class="legend">
+            <span><i class="sw" style="border-color:var(--series-1)"></i>Velocidade (OBD)</span>
+            <span><i class="sw dash" style="border-color:var(--limit)"></i>Limite da via (mapa)</span>
+            <span><i class="sw box" style="background:var(--serious-wash);border:1px solid var(--serious)"></i>Excesso de velocidade</span>
+          </div>
+        </div>
+        <div class="chart" id="speedChart"></div>
+      </div>
+
+      <div class="chart-block">
+        <div class="chart-title">
+          <h3>Aceleração longitudinal (calculada da velocidade)</h3>
+          <div class="legend">
+            <span><i class="sw dash" style="border-color:var(--critical)"></i>Limiar de frenagem brusca (−3,0 m/s²)</span>
+            <span><i class="sw dash" style="border-color:var(--warning)"></i>Limiar de arrancada (+2,7 m/s²)</span>
+          </div>
+        </div>
+        <div class="chart" id="accChart"></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="ev-h">
+    <div class="section-head">
+      <h2 id="ev-h">Eventos de risco detectados</h2>
+      <p>Regras simples aplicadas em cima dos dados do OBD. Clique num evento para levar o replay até ele.</p>
+    </div>
+    <div class="split">
+      <div class="panel score" id="score"></div>
+      <div class="events" id="events"></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="pid-h">
+    <div class="section-head">
+      <h2 id="pid-h">Do dado do OBD ao indicador de segurança</h2>
+      <p>O que o adaptador lê da central do motor e como cada leitura vira informação útil para segurança viária.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Pedido OBD</th><th>Dado</th><th>Indicador de segurança</th><th>Por que importa</th></tr></thead>
+        <tbody>
+          <tr><td><code>01 0D</code></td><td>Velocidade</td><td>Excesso de velocidade, frenagem e aceleração bruscas</td><td>Velocidade é o principal fator de gravidade em sinistros. A variação segundo a segundo mostra freadas de susto.</td></tr>
+          <tr><td><code>01 0C</code></td><td>Rotação (RPM)</td><td>Condução agressiva, reduções forçadas (kickdown)</td><td>RPM alto com acelerador no fundo indica ultrapassagens e arrancadas de risco.</td></tr>
+          <tr><td><code>01 11</code> / <code>01 04</code></td><td>Acelerador e carga do motor</td><td>Estilo de condução</td><td>Diferencia quem acelera progressivamente de quem pisa fundo.</td></tr>
+          <tr><td><code>01 0B</code></td><td>Pressão no coletor (turbo)</td><td>Uso de potência máxima</td><td>No TSI, acima de ~100 kPa o turbo está soprando: o motorista pediu tudo do motor.</td></tr>
+          <tr><td><code>03</code> + <code>01 01</code></td><td>Códigos de falha e luz de injeção</td><td>Veículo rodando com defeito</td><td>Falhas de ignição ou de sensores podem causar perda de potência no meio da via.</td></tr>
+          <tr><td><code>01 05</code></td><td>Temperatura do motor</td><td>Risco de pane</td><td>Superaquecimento deixa o carro parado em local perigoso.</td></tr>
+          <tr><td><code>01 1F</code> / <code>01 31</code></td><td>Tempo de motor ligado, distância</td><td>Exposição ao risco</td><td>Permite normalizar eventos por km rodado ou por hora ao volante.</td></tr>
+          <tr><td><code>09 02</code></td><td>VIN (chassi)</td><td>Identificação do veículo</td><td>Liga os dados a um carro de uma frota ou a um participante do estudo.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="lim-h">
+    <div class="section-head">
+      <h2 id="lim-h">O que o OBD sozinho não entrega</h2>
+      <p>Para fechar o quadro de segurança, o OBD precisa ser combinado com outras fontes.</p>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <h3>Fora do OBD genérico</h3>
+        <ul>
+          <li><strong>Localização e limite da via:</strong> vêm do GPS do celular e de uma base de mapas (ex.: OpenStreetMap).</li>
+          <li><strong>Cinto, airbag, ABS, pedal de freio:</strong> só por protocolos da VW (VCDS, OBDeleven), não pelo padrão OBD2.</li>
+          <li><strong>Uso de celular, sono, distração:</strong> exigem câmera ou sensores do telefone.</li>
+          <li><strong>Curvas e força lateral:</strong> precisam do acelerômetro do celular.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Cuidados com os dados</h3>
+        <ul>
+          <li><strong>Frequência:</strong> um ELM327 lê de 5 a 10 valores por segundo no total. Quanto mais sinais, menor a taxa de cada um.</li>
+          <li><strong>Precisão:</strong> a velocidade vem em km/h inteiros, então a aceleração calculada é aproximada.</li>
+          <li><strong>Limiares:</strong> −3,0 m/s² e +2,7 m/s² são valores usados em telemetria de frotas; precisam ser calibrados.</li>
+          <li><strong>Privacidade:</strong> trajetos e hábitos de direção são dados pessoais (LGPD). É preciso consentimento.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="flow-h">
+    <div class="section-head">
+      <h2 id="flow-h">Como entraria no projeto</h2>
+    </div>
+    <div class="flow">
+      <div class="step"><span class="n">1 · COLETA</span><h3>Adaptador ELM327</h3><p>Plugado na porta OBD2 do Jetta, embaixo do painel.</p></div>
+      <div class="step"><span class="n">2 · LEITURA</span><h3>OBDium ou script Python</h3><p>Lê velocidade, RPM, acelerador e falhas a cada segundo.</p></div>
+      <div class="step"><span class="n">3 · CONTEXTO</span><h3>GPS + mapa</h3><p>Associa cada ponto à via e ao limite de velocidade.</p></div>
+      <div class="step"><span class="n">4 · REGRAS</span><h3>Detecção de eventos</h3><p>Frenagens, arrancadas e excessos com tolerância do CONTRAN.</p></div>
+      <div class="step"><span class="n">5 · RESULTADO</span><h3>Painel e mapa de risco</h3><p>Nota por viagem e pontos da cidade com mais eventos.</p></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  // ---------- simulação da viagem (1 amostra por segundo) ----------
+  const N = 720;
+  const keys = [[0,0],[8,0],[25,32],[60,38],[75,36],[90,0],[110,0],[130,35],[150,42],[175,58],[200,60],[212,57],[215,22],[222,18],
+    [240,50],[270,74],[300,76],[315,62],[330,40],[345,44],[370,46],[385,32],[420,30],[430,28],[433,60],[460,82],[500,86],
+    [540,108],[565,104],[580,80],[600,72],[612,70],[620,48],[640,40],[680,38],[695,10],[700,0],[719,0]];
+  const zones = [[0,150,40,"Rua de bairro"],[150,330,60,"Avenida"],[330,420,30,"Zona escolar"],[420,620,80,"Via expressa"],[620,720,40,"Rua de bairro"]];
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+  const T = [], V = [], L = [], Z = [], A = [], RPM = [], THR = [], MAP = [], TMP = [];
+  let k = 0, n = 0;
+  for (let t = 0; t < N; t++) {
+    while (k < keys.length - 2 && keys[k + 1][0] <= t) k++;
+    const [t0, v0] = keys[k], [t1, v1] = keys[k + 1];
+    let v = v0 + (v1 - v0) * (t - t0) / (t1 - t0);
+    n = n * 0.6 + (rnd() - 0.5) * 0.8;
+    if (v > 1) v = Math.max(0, v + n);
+    T.push(t); V.push(Math.round(v));
+    const z = zones.find(z => t >= z[0] && t < z[1]); L.push(z[2]); Z.push(z[3]);
+  }
+  for (let t = 0; t < N; t++) {
+    const a = t === 0 ? 0 : (V[t] - V[t - 1]) / 3.6;
+    A.push(+a.toFixed(2));
+    const v = V[t];
+    let thr = a < -0.3 ? 0 : Math.min(100, (v > 0 ? 10 + v * 0.22 : 0) + Math.max(0, a) * 28);
+    const g = [[15,110],[30,62],[45,42],[60,31],[80,25],[999,20]];
+    let gi = g.findIndex(x => v < x[0]); if (thr > 75 && gi > 0) gi -= 1;
+    RPM.push(Math.round(Math.max(760, v * g[gi][1]) + (rnd() - 0.5) * 30));
+    THR.push(Math.round(thr));
+    MAP.push(Math.round(32 + thr * 1.25));
+    TMP.push(Math.round(Math.min(91, 27 + t * 0.14)));
+  }
+
+  // ---------- detecção de eventos ----------
+  const events = [];
+  for (let t = 1; t < N; t++) {
+    if (A[t] <= -3.0 && A[t - 1] > -3.0) events.push({ t, kind: "brake", title: "Frenagem brusca", desc: `De ${V[t - 2]} para ${V[Math.min(N - 1, t + 2)]} km/h em ~3 s (pico ${A[t].toFixed(1).replace(".", ",")} m/s²)` });
+    if (A[t] >= 2.7 && A[t - 1] < 2.7) events.push({ t, kind: "accel", title: "Arrancada agressiva", desc: `Acelerador a ${THR[t]}%, ${RPM[t]} rpm, turbo a ${MAP[t]} kPa` });
+  }
+  // excesso: acima do limite + tolerância CONTRAN (7 km/h até 100 km/h, 7% acima) por 3 s ou mais
+  const tol = l => l <= 100 ? 7 : l * 0.07;
+  const speeding = [];
+  let s = -1;
+  for (let t = 0; t <= N; t++) {
+    const over = t < N && V[t] > L[t] + tol(L[t]);
+    if (over && s < 0) s = t;
+    if (!over && s >= 0) { if (t - s >= 3) speeding.push([s, t - 1]); s = -1; }
+  }
+  speeding.forEach(([a, b]) => {
+    let pk = a; for (let t = a; t <= b; t++) if (V[t] > V[pk]) pk = t;
+    const pct = (V[pk] - L[pk]) / L[pk] * 100;
+    const grav = pct <= 20 ? "média" : pct <= 50 ? "grave" : "gravíssima";
+    events.push({ t: a, end: b, kind: "speed", grav, title: `Excesso de velocidade (${grav})`,
+      desc: `${Z[pk]}, limite ${L[pk]} km/h: pico de ${V[pk]} km/h (+${Math.round(pct)}%) por ${b - a + 1} s` });
+  });
+  events.sort((a, b) => a.t - b.t);
+
+  const KIND = {
+    brake: { color: "var(--critical)", icon: "!" },
+    accel: { color: "var(--warning)", icon: "↑" },
+    speed: { color: "var(--serious)", icon: "»" }
+  };
+  const penalty = e => e.kind === "brake" ? 10 : e.kind === "accel" ? 6 : ({ "média": 5, "grave": 10, "gravíssima": 20 })[e.grav];
+  const score = Math.max(0, 100 - events.reduce((s, e) => s + penalty(e), 0));
+  const fmt = t => `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+  const num = x => String(x).replace(".", ",");
+
+  // ---------- nota ----------
+  const level = score >= 85 ? ["Condução segura", "var(--good)", "✓"] : score >= 65 ? ["Atenção", "var(--warning)", "!"] : ["Risco elevado", "var(--critical)", "▲"];
+  const count = k => events.filter(e => e.kind === k).length;
+  document.getElementById("score").innerHTML = `
+    <span class="eyebrow">Nota da viagem</span>
+    <div class="big">${score}<small> / 100</small></div>
+    <span class="pill" style="color:${level[1]}">${level[2]} ${level[0]}</span>
+    <div class="tally">
+      <div><span>Frenagens bruscas</span><b>${count("brake")}</b></div>
+      <div><span>Arrancadas agressivas</span><b>${count("accel")}</b></div>
+      <div><span>Trechos com excesso de velocidade</span><b>${count("speed")}</b></div>
+      <div><span>Distância</span><b>${num((V.reduce((a, b) => a + b, 0) / 3600).toFixed(1))} km</b></div>
+      <div><span>Códigos de falha (modo 03)</span><b>0</b></div>
+    </div>
+    <p class="note">Pontuação ilustrativa: −10 por frenagem brusca, −6 por arrancada, −5/−10/−20 por excesso médio/grave/gravíssimo (faixas do CTB, art. 218).</p>`;
+
+  const evBox = document.getElementById("events");
+  evBox.innerHTML = events.map((e, i) => `
+    <button class="ev" type="button" data-i="${i}">
+      <span class="t">${fmt(e.t)}</span>
+      <span class="ico" style="background:${KIND[e.kind].color}" aria-hidden="true">${KIND[e.kind].icon}</span>
+      <span class="d"><strong>${e.title}</strong><span>${e.desc}</span></span>
+    </button>`).join("");
+  evBox.addEventListener("click", ev => { const b = ev.target.closest(".ev"); if (b) { stop(); setCursor(events[+b.dataset.i].t); document.getElementById("replay-h").scrollIntoView({ behavior: "smooth" }); } });
+
+  // ---------- leituras ----------
+  const ro = [
+    ["Velocidade", "km/h", "01 0D", t => V[t], t => V[t] > L[t] + tol(L[t])],
+    ["Limite da via", "km/h", "GPS + mapa", t => L[t]],
+    ["Rotação", "rpm", "01 0C", t => RPM[t].toLocaleString("pt-BR")],
+    ["Acelerador", "%", "01 11", t => THR[t]],
+    ["Pressão coletor", "kPa", "01 0B", t => MAP[t], t => MAP[t] > 100],
+    ["Temp. motor", "°C", "01 05", t => TMP[t]],
+    ["Aceleração", "m/s²", "calculada", t => num(A[t].toFixed(1)), t => A[t] <= -3 || A[t] >= 2.7]
+  ];
+  const roBox = document.getElementById("readouts");
+  roBox.innerHTML = ro.map((r, i) => `<div class="ro" id="ro${i}"><span class="k">${r[0]}</span><span class="v"><span></span><small>${r[1]}</small></span><span class="pid">${r[2]}</span></div>`).join("");
+
+  // ---------- gráficos ----------
+  const charts = [];
+  function makeChart(el, opts) {
+    const c = { el, opts };
+    c.draw = function () {
+      const W = Math.max(300, el.clientWidth), H = opts.h, m = { l: 40, r: 10, t: 10, b: 24 };
+      const iw = W - m.l - m.r, ih = H - m.t - m.b;
+      const x = t => m.l + t / (N - 1) * iw, y = v => m.t + ih - (v - opts.min) / (opts.max - opts.min) * ih;
+      c.x = x; c.m = m; c.iw = iw; c.W = W;
+      let g = "";
+      opts.ticks.forEach(v => { g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--rule)" stroke-width="1"/><text x="${m.l - 6}" y="${y(v) + 4}" text-anchor="end">${num(v)}</text>`; });
+      for (let t = 0; t <= 720; t += 120) { const tt = Math.min(t, N - 1); g += `<text x="${x(tt)}" y="${H - 6}" text-anchor="${t === 0 ? "start" : t === 720 ? "end" : "middle"}">${fmt(t)}</text>`; }
+      g += opts.body(x, y, m, ih);
+      g += `<line class="cur" x1="0" x2="0" y1="${m.t}" y2="${m.t + ih}" stroke="var(--ink)" stroke-width="1"/><circle class="dot" r="4" fill="var(--series-1)" stroke="var(--surface)" stroke-width="2"/>`;
+      el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.label}">${g}<rect class="hit" x="${m.l}" y="0" width="${iw}" height="${H}" fill="transparent"/></svg><div class="tip" hidden></div>`;
+      c.cur = el.querySelector(".cur"); c.dot = el.querySelector(".dot"); c.y = y; c.tip = el.querySelector(".tip");
+      const hit = el.querySelector(".hit");
+      const tFrom = e => { const r = el.querySelector("svg").getBoundingClientRect(); return Math.max(0, Math.min(N - 1, Math.round(((e.clientX - r.left) * W / r.width - m.l) / iw * (N - 1)))); };
+      hit.addEventListener("pointermove", e => { hoverAt(tFrom(e)); });
+      hit.addEventListener("pointerleave", () => { hoverAt(null); });
+      hit.addEventListener("click", e => { stop(); setCursor(tFrom(e)); });
+      c.place(cursor);
+    };
+    c.place = function (t) {
+      if (!c.cur) return;
+      c.cur.setAttribute("x1", c.x(t)); c.cur.setAttribute("x2", c.x(t));
+      c.dot.setAttribute("cx", c.x(t)); c.dot.setAttribute("cy", c.y(opts.value(t)));
+    };
+    charts.push(c);
+    return c;
+  }
+  const path = (arr, x, y) => arr.map((v, t) => `${t ? "L" : "M"}${x(t).toFixed(1)},${y(v).toFixed(1)}`).join("");
+
+  makeChart(document.getElementById("speedChart"), {
+    h: 240, min: 0, max: 120, ticks: [0, 30, 60, 90, 120], value: t => V[t], label: "Velocidade e limite da via ao longo da viagem",
+    body: (x, y, m, ih) => {
+      let s = "";
+      speeding.forEach(([a, b]) => { s += `<rect x="${x(a)}" y="${m.t}" width="${Math.max(2, x(b) - x(a))}" height="${ih}" fill="var(--serious-wash)"/>`; });
+      let lp = ""; zones.forEach(([a, b, l], i) => { lp += `${i ? "L" : "M"}${x(a)},${y(l)}L${x(Math.min(b, N - 1))},${y(l)}`; });
+      s += `<path d="${lp}" fill="none" stroke="var(--limit)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+      s += `<path d="${path(V, x, y)}" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round"/>`;
+      events.filter(e => e.kind !== "speed").forEach(e => { s += `<circle cx="${x(e.t)}" cy="${y(V[e.t])}" r="5" fill="${KIND[e.kind].color}" stroke="var(--surface)" stroke-width="2"/>`; });
+      return s;
+    }
+  });
+  makeChart(document.getElementById("accChart"), {
+    h: 150, min: -4, max: 4, ticks: [-4, -2, 0, 2, 4], value: t => A[t], label: "Aceleração longitudinal ao longo da viagem",
+    body: (x, y) => `<line x1="${x(0)}" x2="${x(N - 1)}" y1="${y(-3)}" y2="${y(-3)}" stroke="var(--critical)" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <line x1="${x(0)}" x2="${x(N - 1)}" y1="${y(2.7)}" y2="${y(2.7)}" stroke="var(--warning)" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <path d="${path(A, x, y)}" fill="none" stroke="var(--series-1)" stroke-width="1.5" stroke-linejoin="round"/>`
+  });
+
+  // ---------- estado / interação ----------
+  let cursor = N - 1, playing = false, last = 0, acc = 0;
+  const scrub = document.getElementById("scrub"), playBtn = document.getElementById("play");
+  function setCursor(t) {
+    cursor = t; scrub.value = t;
+    document.getElementById("clock").textContent = fmt(t);
+    document.getElementById("zone").textContent = `${Z[t]} · ${L[t]} km/h`;
+    ro.forEach((r, i) => { const el = document.getElementById("ro" + i); el.querySelector(".v span").textContent = r[3](t); el.classList.toggle("alert", !!(r[4] && r[4](t))); });
+    charts.forEach(c => c.place(t));
+    evBox.querySelectorAll(".ev").forEach((b, i) => b.classList.toggle("future", events[i].t > t));
+  }
+  function hoverAt(t) {
+    charts.forEach(c => {
+      if (t === null) { c.tip.hidden = true; c.place(cursor); return; }
+      c.place(t);
+      c.tip.innerHTML = `<b>${fmt(t)}</b> · ${Z[t]}<br>Velocidade <b>${V[t]}</b> km/h (limite ${L[t]})<br>Aceleração <b>${num(A[t].toFixed(1))}</b> m/s²<br>${RPM[t].toLocaleString("pt-BR")} rpm · acelerador ${THR[t]}%`;
+      c.tip.hidden = false;
+      const px = c.x(t) / c.W * c.el.clientWidth;
+      const tw = c.tip.offsetWidth;
+      c.tip.style.left = Math.min(c.el.clientWidth - tw, Math.max(0, px + 12 + tw > c.el.clientWidth ? px - tw - 12 : px + 12)) + "px";
+      c.tip.style.top = "8px";
+    });
+  }
+  function frame(ts) {
+    if (!playing) return;
+    if (last) acc += (ts - last) / 1000 * 24;
+    last = ts;
+    const step = Math.floor(acc); if (step) { acc -= step; setCursor(Math.min(N - 1, cursor + step)); }
+    if (cursor >= N - 1) { stop(); return; }
+    requestAnimationFrame(frame);
+  }
+  function stop() { playing = false; playBtn.textContent = "▶ Reproduzir"; }
+  playBtn.addEventListener("click", () => {
+    if (playing) { stop(); return; }
+    if (cursor >= N - 1) setCursor(0);
+    playing = true; last = 0; acc = 0; playBtn.textContent = "❚❚ Pausar"; requestAnimationFrame(frame);
+  });
+  scrub.addEventListener("input", () => { stop(); setCursor(+scrub.value); });
+
+  charts.forEach(c => c.draw());
+  setCursor(N - 1);
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => charts.forEach(c => c.draw()), 120); });
+})();
+</script>
